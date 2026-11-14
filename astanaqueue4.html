@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#eef6f2">
+<title>AstanaQueue — Digital Queue</title>
+<style>
+  :root {
+    --ink:#14231d; --muted:#5d706a; --line:rgba(20,35,29,.12);
+    --green:#0b7a55; --green-d:#08603f; --mint:#e6f7ef;
+    --amber:#8a5700; --amber-bg:#fff2d9; --red:#c23232; --red-d:#a42626; --blue:#2a4a94;
+    --glass:rgba(255,255,255,.74);
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { font-size:100%; }
+  body {
+    font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;
+    color:var(--ink); min-height:100vh; padding:18px 14px 36px; background:#f2f8f5;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  /* soft animated background */
+  .bg { position:fixed; inset:0; z-index:-1; overflow:hidden; background:linear-gradient(180deg,#f5fbf8,#edf3fb); }
+  .bg span { position:absolute; border-radius:50%; filter:blur(70px); opacity:.8; animation:float 22s ease-in-out infinite alternate; }
+  .b1 { width:420px; height:420px; background:#b7efd5; top:-130px; left:-110px; }
+  .b2 { width:380px; height:380px; background:#c8dcff; top:22%; right:-150px; animation-delay:-8s; }
+  .b3 { width:440px; height:440px; background:#ffdcb9; bottom:-170px; left:18%; animation-delay:-14s; }
+  @keyframes float { to { transform:translate(40px,30px) scale(1.12); } }
+
+  .wrap { width:100%; max-width:480px; }
+  .top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .brand { display:flex; align-items:center; gap:10px; min-width:0; }
+  .brand b { font-size:1.25rem; display:block; letter-spacing:.2px; }
+  .brand small { font-size:.72rem; color:var(--muted); display:block; line-height:1.25; }
+  .tools { display:flex; gap:8px; align-items:center; flex:none; }
+  .seg { display:flex; background:rgba(255,255,255,.8); border:1px solid var(--line); border-radius:999px; padding:3px; }
+  .seg button { border:0; background:transparent; color:var(--ink); font-weight:700; font-size:.78rem;
+    padding:7px 10px; min-width:38px; min-height:36px; border-radius:999px; cursor:pointer; }
+  .seg button.active { background:var(--green); color:#fff; }
+
+  .tabs { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; margin-top:14px; padding:4px;
+    background:rgba(255,255,255,.65); border:1px solid var(--line); border-radius:16px; backdrop-filter:blur(10px); }
+  .tab { border:0; background:transparent; color:var(--muted); font-weight:700; font-size:.82rem;
+    padding:11px 2px; min-height:46px; border-radius:12px; cursor:pointer; }
+  .tab.active { background:#fff; color:var(--green-d); box-shadow:0 4px 14px rgba(20,35,29,.1); }
+
+  .card { display:none; margin-top:14px; padding:24px 20px; border-radius:24px;
+    background:var(--glass); border:1px solid rgba(255,255,255,.9); backdrop-filter:blur(16px);
+    box-shadow:0 18px 40px rgba(20,35,29,.1); }
+  .card.active { display:block; animation:rise .25s ease; }
+  @keyframes rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  h2 { font-size:1.4rem; margin-bottom:4px; }
+  .desc { color:var(--muted); font-size:.88rem; margin-bottom:18px; }
+  [hidden] { display:none !important; }
+
+  label.lbl { display:block; font-size:.74rem; font-weight:700; color:#3a4f47; margin:0 0 7px; text-transform:uppercase; letter-spacing:.5px; }
+  .field { margin-bottom:16px; }
+  input[type=text], input[type=tel], input[type=password], select {
+    width:100%; min-height:54px; padding:12px 14px; font-size:1.05rem; color:var(--ink);
+    border:1.5px solid var(--line); border-radius:14px; background:#fff; outline:none; }
+  input:focus, select:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(11,122,85,.16); }
+  input.invalid { border-color:var(--red); box-shadow:0 0 0 3px rgba(194,50,50,.14); }
+  .hint { font-size:.78rem; color:var(--muted); margin-top:6px; min-height:1em; }
+  .hint.err { color:var(--red); font-weight:600; }
+
+  .btn { width:100%; min-height:56px; border:0; border-radius:16px; font-size:1rem; font-weight:700;
+    cursor:pointer; color:#fff; transition:transform .06s, background .15s, opacity .15s; }
+  .btn:active { transform:scale(.985); } .btn:disabled { opacity:.45; cursor:not-allowed; }
+  .btn-primary { background:var(--green); } .btn-primary:hover:not(:disabled) { background:var(--green-d); }
+  .btn-danger { background:var(--red); } .btn-danger:hover:not(:disabled) { background:var(--red-d); }
+  .btn-ghost { background:#fff; color:var(--green-d); border:1.5px solid var(--line); }
+  .btn-sm { min-height:46px; font-size:.9rem; }
+  .btn + .btn, .row-btns { margin-top:10px; }
+  .row-btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .row-btns .btn { margin-top:0; }
+
+  /* category cards */
+  .cats { display:grid; gap:10px; }
+  .cat { position:relative; display:flex; gap:14px; align-items:center; padding:13px 16px; min-height:68px;
+    background:#fff; border:1.5px solid var(--line); border-radius:16px; cursor:pointer; transition:.15s; }
+  .cat input { position:absolute; opacity:0; inset:0; cursor:pointer; }
+  .cat.sel { border-color:var(--green); background:var(--mint); box-shadow:0 0 0 3px rgba(11,122,85,.14); }
+  .cat:focus-within { outline:3px solid rgba(11,122,85,.35); }
+  .cat .ic { font-size:1.7rem; }
+  .cat b { display:block; font-size:1rem; }
+  .cat small { display:block; color:var(--muted); font-size:.76rem; line-height:1.3; margin-top:2px; }
+  .note { font-size:.74rem; color:var(--muted); margin-top:8px; }
+
+  .track { margin-top:20px; padding-top:18px; border-top:1px solid var(--line); }
+  .track-row { display:grid; grid-template-columns:1fr auto; gap:8px; }
+  .track-row .btn { width:auto; padding:0 18px; min-height:54px; }
+
+  /* ticket */
+  .ticket { text-align:center; padding:22px 14px 18px; border-radius:20px; background:#fff;
+    border:2px dashed rgba(11,122,85,.28); }
+  .ticket .k { font-size:.7rem; letter-spacing:1.2px; color:var(--muted); font-weight:700; text-transform:uppercase; }
+  .ticket .num { font-size:3.8rem; font-weight:800; color:var(--green); letter-spacing:2px; line-height:1.1; margin:4px 0 10px; }
+  .pill { display:inline-block; padding:7px 15px; border-radius:999px; font-size:.82rem; font-weight:700; }
+  .pill.waiting { background:var(--amber-bg); color:var(--amber); }
+  .pill.called { background:#d6f5e5; color:#0a6b3f; animation:pulse 1.2s infinite; }
+  .pill.served { background:#e3eafa; color:var(--blue); }
+  .pill.cancelled { background:#fde3e3; color:#9b2222; }
+  @keyframes pulse { 50% { box-shadow:0 0 0 8px rgba(11,122,85,.14); } }
+  .called-banner { margin:14px 4px 0; padding:14px; border-radius:14px; background:var(--green); color:#fff; font-weight:700; }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:16px; }
+  .stat { background:#f6faf8; border:1px solid var(--line); border-radius:14px; padding:11px 4px; text-align:center; }
+  .stat b { display:block; font-size:1.5rem; }
+  .stat span { font-size:.68rem; color:var(--muted); line-height:1.2; display:block; }
+  .bar { height:8px; background:rgba(20,35,29,.08); border-radius:99px; overflow:hidden; margin-top:16px; }
+  .bar i { display:block; height:100%; width:0; background:linear-gradient(90deg,#7fd6b4,var(--green)); transition:width .6s ease; }
+  .live { margin:12px 0 0; font-size:.76rem; color:var(--muted); display:flex; align-items:center; justify-content:center; gap:6px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#2cc17b; animation:blink 1.4s infinite; }
+  .dot.off { background:var(--red); animation:none; }
+  @keyframes blink { 50% { opacity:.3; } }
+  .opts { margin-top:16px; padding:14px; background:rgba(255,255,255,.7); border:1px solid var(--line); border-radius:16px; }
+  .opts .line { display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:.88rem; font-weight:600; }
+  .opts .line + .line { margin-top:12px; }
+  .opts select { width:auto; min-height:42px; padding:6px 10px; font-size:.9rem; }
+  .switch { position:relative; width:48px; height:28px; flex:none; }
+  .switch input { opacity:0; width:100%; height:100%; position:absolute; inset:0; cursor:pointer; z-index:1; }
+  .switch i { position:absolute; inset:0; background:#c8d3ce; border-radius:99px; transition:.2s; }
+  .switch i::after { content:""; position:absolute; width:22px; height:22px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+  .switch input:checked + i { background:var(--green); } .switch input:checked + i::after { transform:translateX(20px); }
+  .switch input:focus-visible + i { outline:3px solid rgba(11,122,85,.4); }
+
+  /* board */
+  .wgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }
+  .wcard { background:#fff; border:1px solid var(--line); border-radius:18px; padding:14px 8px; text-align:center; }
+  .wcard small { display:block; font-size:.72rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; }
+  .wcard .n { font-size:2.2rem; font-weight:800; color:var(--muted); margin-top:4px; }
+  .wcard.busy { background:var(--mint); border-color:rgba(11,122,85,.35); }
+  .wcard.busy .n { color:var(--green-d); }
+  .qlist { margin-top:16px; background:#fff; border:1px solid var(--line); border-radius:16px; overflow:hidden; }
+  .qrow { display:flex; justify-content:space-between; padding:13px 14px; font-size:.92rem; border-bottom:1px solid var(--line); }
+  .qrow:last-child { border-bottom:0; } .qrow b { color:var(--green-d); }
+  .qhead { background:#f6faf8; font-size:.72rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+  .announce { margin-top:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:.88rem; font-weight:600; }
+
+  /* staff */
+  .lock { text-align:center; } .lock .big { font-size:2.4rem; margin-bottom:6px; }
+  .serving { border:2px solid rgba(11,122,85,.35); background:var(--mint); border-radius:20px; padding:16px; text-align:center; margin:16px 0 0; }
+  .serving .k { font-size:.7rem; letter-spacing:1.2px; color:#166534; font-weight:700; text-transform:uppercase; }
+  .serving .num { font-size:3rem; font-weight:800; color:var(--green-d); margin:2px 0 8px; }
+  .kpis { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:18px; }
+  .kpis .stat b { font-size:1.8rem; } .kpis .stat span { font-size:.74rem; }
+  .chart { display:flex; align-items:flex-end; gap:6px; height:130px; padding:8px 4px 0; border-bottom:2px solid var(--line); }
+  .chart .col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; font-size:.62rem; color:var(--muted); }
+  .chart .col i { display:block; width:100%; background:linear-gradient(180deg,#7fd6b4,var(--green)); border-radius:6px 6px 0 0; min-height:2px; }
+  .axis { display:flex; gap:6px; padding:4px; } .axis span { flex:1; text-align:center; font-size:.62rem; color:var(--muted); }
+  .chart-title { font-size:.85rem; font-weight:700; margin-bottom:6px; } .chart-src { font-size:.7rem; color:var(--muted); margin-top:6px; }
+
+  .offline { margin-top:12px; padding:10px 14px; border-radius:12px; background:#fde3e3; color:#8f2020; font-size:.84rem; font-weight:600; text-align:center; }
+  .foot { margin-top:18px; text-align:center; font-size:.72rem; color:var(--muted); line-height:1.5; }
+
+  #toasts { position:fixed; left:0; right:0; top:12px; display:flex; flex-direction:column; align-items:center; gap:8px; z-index:50; pointer-events:none; padding:0 12px; }
+  .toast { pointer-events:auto; max-width:460px; width:100%; padding:14px 16px; border-radius:14px; color:#fff; font-weight:600; font-size:.95rem;
+    box-shadow:0 12px 30px rgba(0,0,0,.25); animation:rise .2s ease; }
+  .toast.ok { background:#0b7a55; } .toast.err { background:#b42b2b; } .toast.warn { background:#946000; }
+  .toast.call { background:#0b7a55; font-size:1.05rem; border:2px solid #9ae6c6; }
+
+  @media (max-width:390px) { .ticket .num { font-size:3rem; } .brand small { display:none; } .tab { font-size:.76rem; } }
+  @media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><span class="b1"></span><span class="b2"></span><span class="b3"></span></div>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg width="42" height="42" viewBox="0 0 48 48" role="img" aria-label="AstanaQueue logo">
+        <rect width="48" height="48" rx="12" fill="#0b7a55"/>
+        <rect x="8" y="13" width="32" height="19" rx="5" fill="#e8f5ef"/>
+        <rect x="11" y="16" width="6" height="7" rx="1.5" fill="#0b7a55"/><rect x="19" y="16" width="6" height="7" rx="1.5" fill="#0b7a55"/>
+        <rect x="27" y="16" width="6" height="7" rx="1.5" fill="#0b7a55"/><rect x="35" y="16" width="3" height="12" rx="1.5" fill="#7fd6b4"/>
+        <circle cx="16" cy="34" r="3.6" fill="#14231d"/><circle cx="32" cy="34" r="3.6" fill="#14231d"/>
+      </svg>
+      <div><b>AstanaQueue</b><small data-i18n="app_sub"></small></div>
+    </div>
+    <div class="tools">
+      <div class="seg" role="group" aria-label="Text size">
+        <button id="fsDown" aria-label="Smaller text">A−</button><button id="fsUp" aria-label="Larger text">A+</button>
+      </div>
+      <div class="seg lang" role="group" aria-label="Language">
+        <button data-lang="en">EN</button><button data-lang="ru">RU</button><button data-lang="kk">KK</button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" role="tab" data-tab="ticket" data-i18n="tab_ticket"></button>
+    <button class="tab" role="tab" data-tab="board" data-i18n="tab_board"></button>
+    <button class="tab" role="tab" data-tab="operator" data-i18n="tab_operator"></button>
+    <button class="tab" role="tab" data-tab="admin" data-i18n="tab_admin"></button>
+  </nav>
+  <div id="offline" class="offline" hidden data-i18n="err_offline"></div>
+
+  <!-- TICKET -->
+  <section id="tab-ticket" class="card active">
+    <div id="issueView">
+      <h2 data-i18n="c_title"></h2>
+      <p class="desc" data-i18n="c_desc"></p>
+      <form id="issueForm" novalidate>
+        <div class="field">
+          <span class="lbl" style="display:block" data-i18n="cat_label"></span>
+          <div class="cats" id="cats">
+            <label class="cat sel"><input type="radio" name="cat" value="ST" checked><span class="ic" aria-hidden="true">🎓</span><span><b data-i18n="cat_ST"></b><small data-i18n="doc_ST"></small></span></label>
+            <label class="cat"><input type="radio" name="cat" value="SC"><span class="ic" aria-hidden="true">🎒</span><span><b data-i18n="cat_SC"></b><small data-i18n="doc_SC"></small></span></label>
+            <label class="cat"><input type="radio" name="cat" value="SR"><span class="ic" aria-hidden="true">🧓</span><span><b data-i18n="cat_SR"></b><small data-i18n="doc_SR"></small></span></label>
+          </div>
+          <div class="note" data-i18n="doc_note"></div>
+        </div>
+        <div class="field">
+          <label class="lbl" for="phone" data-i18n="phone_label"></label>
+          <input id="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="+7 (707) 123-45-67" maxlength="18">
+          <div id="phoneHint" class="hint"></div>
+        </div>
+        <button class="btn btn-primary" type="submit" id="issueBtn" data-i18n="btn_issue"></button>
+      </form>
+      <div class="track">
+        <label class="lbl" for="trackInp" data-i18n="track_title"></label>
+        <div class="track-row">
+          <input id="trackInp" type="text" autocapitalize="characters" maxlength="8" data-i18n-ph="track_ph">
+          <button class="btn btn-ghost" id="trackBtn" type="button" data-i18n="btn_track"></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="ticketView" hidden>
+      <div class="ticket">
+        <div class="k" data-i18n="your_ticket"></div>
+        <div id="tNum" class="num">—</div>
+        <span id="tPill" class="pill waiting"></span>
+        <div id="calledBanner" class="called-banner" hidden></div>
+        <div class="stats" id="tStats">
+          <div class="stat"><b id="tAhead">0</b><span data-i18n="ahead"></span></div>
+          <div class="stat"><b id="tWait">0</b><span data-i18n="wait_min"></span></div>
+          <div class="stat"><b id="tNow">—</b><span data-i18n="now_serving"></span></div>
+        </div>
+        <div class="bar" aria-hidden="true"><i id="tBar"></i></div>
+      </div>
+      <div class="live"><span class="dot" id="liveDot"></span><span data-i18n="live"></span></div>
+
+      <div class="opts" id="tOpts">
+        <div class="line"><span data-i18n="alert_label"></span><select id="alertN" aria-label="Alert threshold"></select></div>
+        <div class="line"><span data-i18n="notif_label"></span><label class="switch"><input type="checkbox" id="notifToggle" aria-label="Browser notifications"><i></i></label></div>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn btn-ghost btn-sm" id="copyBtn" data-i18n="btn_copy"></button>
+        <button class="btn btn-danger btn-sm" id="cancelBtn" data-i18n="btn_cancel"></button>
+        <button class="btn btn-primary" id="newBtn" data-i18n="btn_new" hidden></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOARD -->
+  <section id="tab-board" class="card">
+    <h2 data-i18n="board_title"></h2>
+    <p class="desc" data-i18n="board_desc"></p>
+    <div class="wgrid" id="wGrid"></div>
+    <div class="qlist" id="boardQueues"></div>
+    <div class="announce"><span data-i18n="announce"></span><label class="switch"><input type="checkbox" id="announceToggle" aria-label="Announce calls"><i></i></label></div>
+  </section>
+
+  <!-- OPERATOR -->
+  <section id="tab-operator" class="card">
+    <div id="gate-operator" class="lock">
+      <div class="big" aria-hidden="true">🔒</div>
+      <h2 data-i18n="lock_title"></h2><p class="desc" data-i18n="lock_desc_op"></p>
+      <form data-role="operator" class="gateForm">
+        <div class="field"><input type="password" inputmode="numeric" autocomplete="current-password" aria-label="PIN" data-i18n-ph="pin_ph"></div>
+        <button class="btn btn-primary" type="submit" data-i18n="btn_unlock"></button>
+      </form>
+    </div>
+    <div id="staff-operator" hidden>
+      <h2 data-i18n="o_title"></h2><p class="desc" data-i18n="o_desc"></p>
+      <div class="field">
+        <label class="lbl" for="windowId" data-i18n="window_label"></label>
+        <select id="windowId"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
+      </div>
+      <button class="btn btn-primary" id="callBtn" data-i18n="btn_call"></button>
+      <div class="serving">
+        <div class="k" data-i18n="serving"></div><div id="curServing" class="num">—</div>
+        <div class="row-btns">
+          <button class="btn btn-primary btn-sm" id="serveBtn" disabled data-i18n="btn_serve"></button>
+          <button class="btn btn-ghost btn-sm" id="noshowBtn" disabled data-i18n="btn_noshow"></button>
+        </div>
+      </div>
+      <div class="qlist" id="opQueues"></div>
+      <button class="btn btn-ghost btn-sm lockBtn" style="margin-top:14px" data-i18n="btn_lock"></button>
+    </div>
+  </section>
+
+  <!-- ADMIN -->
+  <section id="tab-admin" class="card">
+    <div id="gate-admin" class="lock">
+      <div class="big" aria-hidden="true">🔒</div>
+      <h2 data-i18n="lock_title"></h2><p class="desc" data-i18n="lock_desc_admin"></p>
+      <form data-role="admin" class="gateForm">
+        <div class="field"><input type="password" inputmode="numeric" autocomplete="current-password" aria-label="PIN" data-i18n-ph="pin_ph"></div>
+        <button class="btn btn-primary" type="submit" data-i18n="btn_unlock"></button>
+      </form>
+    </div>
+    <div id="staff-admin" hidden>
+      <h2 data-i18n="a_title"></h2><p class="desc" data-i18n="a_desc"></p>
+      <div class="kpis">
+        <div class="stat"><b id="kWaiting">0</b><span data-i18n="k_waiting"></span></div>
+        <div class="stat"><b id="kCalled">0</b><span data-i18n="k_called"></span></div>
+        <div class="stat"><b id="kServed">0</b><span data-i18n="k_served"></span></div>
+        <div class="stat"><b id="kAvg">—</b><span data-i18n="k_avg"></span></div>
+      </div>
+      <div class="chart-title" data-i18n="chart_title"></div>
+      <div class="chart" id="hourChart"></div><div class="axis" id="hourAxis"></div>
+      <div class="chart-src" data-i18n="chart_src"></div>
+      <div class="row-btns" style="margin-top:20px">
+        <button class="btn btn-ghost btn-sm" id="exportBtn" data-i18n="btn_export"></button>
+        <button class="btn btn-danger btn-sm" id="clearBtn" data-i18n="btn_clear"></button>
+      </div>
+      <button class="btn btn-ghost btn-sm lockBtn" style="margin-top:10px" data-i18n="btn_lock"></button>
+    </div>
+  </section>
+
+  <p class="foot" data-i18n="footer"></p>
+</div>
+<div id="toasts" aria-live="polite" role="status"></div>
+
+<script>
+/* Same-origin API: works on localhost:5000 and through ngrok. file:// falls back to localhost. */
+const API_BASE = location.protocol === 'file:' ? 'http://127.0.0.1:5000' : '';
+const POLL_MS = 2000;
+const $ = id => document.getElementById(id);
+
+/* ============ i18n (English by default; RU/KK kept for R8) ============ */
+const I18N = {
+ en: {
+  app_sub:'Digital queue for concession transit tickets', tab_ticket:'Ticket', tab_board:'Live board', tab_operator:'Operator', tab_admin:'Admin',
+  c_title:'Get your ticket', c_desc:'Skip the line: pick a category and get an online ticket.',
+  cat_label:'Category', cat_ST:'Students', cat_SC:'Schoolchildren', cat_SR:'Seniors',
+  doc_ST:'Bring: student ID + ID document', doc_SC:'Bring: school ID or certificate + ID document', doc_SR:'Bring: pension certificate + ID document',
+  doc_note:'Documents are checked at the service window.',
+  phone_label:'Phone number', phone_hint:'Format: +7 (7XX) XXX-XX-XX', btn_issue:'Get ticket',
+  track_title:'Already have a ticket? Track it', track_ph:'e.g. ST-36', btn_track:'Track', track_nf:'Ticket not found',
+  your_ticket:'Your ticket', ahead:'People ahead', wait_min:'Est. wait, min', now_serving:'Now serving',
+  live:'Live — updates every 2 seconds',
+  st_waiting:'Waiting in queue', st_called:'You are called!', st_served:'Served', st_cancelled:'Cancelled',
+  called_banner:'Please go to window {w}', called_toast:"It's your turn! Window {w}",
+  alert_label:'Alert me when', alert_opt:'{n} people ahead', alert_toast:'Only {n} ahead of you — time to head to the center!',
+  notif_label:'Browser notifications', notif_denied:'Notifications are blocked in your browser.',
+  btn_cancel:'Cancel ticket', confirm_cancel:'Cancel this ticket?', cancelled_ok:'Ticket cancelled', btn_new:'Take a new ticket',
+  btn_copy:'Copy tracking link', copied:'Link copied — open it on any device',
+  err_phone:'Enter the full number: +7 (7XX) XXX-XX-XX', err_offline:'Cannot reach the server. Check your connection.',
+  board_title:'Live board', board_desc:'What is being served right now', window:'Window', free:'Free',
+  q_head:'Waiting by category', q_total:'Total', q_unit:'ppl', announce:'Announce calls (voice + sound)',
+  lock_title:'Staff access', lock_desc_op:'Enter the operator PIN to continue.', lock_desc_admin:'Enter the admin PIN to continue.',
+  pin_ph:'PIN', btn_unlock:'Unlock', bad_pin:'Wrong PIN', btn_lock:'Lock',
+  o_title:'Operator desk', o_desc:'Call tickets and record the result', window_label:'Service window',
+  btn_call:'Call next ticket', btn_serve:'Served', btn_noshow:'No-show', serving:'Now serving',
+  no_waiting:'No waiting tickets', finish_first:'Finish ticket {t} first', call_ok:'Called {t} → window {w}', serve_ok:'{t} marked as served', noshow_ok:'{t} marked as no-show',
+  a_title:'Dashboard', a_desc:'Queue statistics and data tools',
+  k_waiting:'Waiting', k_called:'Being served', k_served:'Served', k_avg:'Avg wait, min',
+  chart_title:'Tickets by hour of day', chart_src:'Source: tickets table (SQLite), column created_at',
+  btn_export:'Export CSV', btn_clear:'Clear all tickets', confirm_clear:'Delete ALL tickets from the database?', cleared:'Database cleared',
+  footer:'Free for students, schoolchildren and seniors. Your phone number is used only to prevent duplicate tickets.'
+ },
+ ru: {
+  app_sub:'Электронная очередь за льготным проездным', tab_ticket:'Талон', tab_board:'Табло', tab_operator:'Оператор', tab_admin:'Админ',
+  c_title:'Получите талон', c_desc:'Без очереди в зале: выберите категорию и получите онлайн-талон.',
+  cat_label:'Категория', cat_ST:'Студенты', cat_SC:'Школьники', cat_SR:'Пенсионеры',
+  doc_ST:'Нужны: студенческий + удостоверение личности', doc_SC:'Нужны: школьный документ + удостоверение личности', doc_SR:'Нужны: пенсионное удостоверение + удостоверение личности',
+  doc_note:'Документы проверяются у окна обслуживания.',
+  phone_label:'Номер телефона', phone_hint:'Формат: +7 (7XX) XXX-XX-XX', btn_issue:'Получить талон',
+  track_title:'Уже есть талон? Отследите его', track_ph:'напр. ST-36', btn_track:'Найти', track_nf:'Талон не найден',
+  your_ticket:'Ваш талон', ahead:'Людей впереди', wait_min:'Ожидание, мин', now_serving:'Сейчас обслуживается',
+  live:'Обновляется каждые 2 секунды',
+  st_waiting:'В очереди', st_called:'Вас вызывают!', st_served:'Обслужен', st_cancelled:'Отменён',
+  called_banner:'Подойдите к окну {w}', called_toast:'Ваша очередь! Окно {w}',
+  alert_label:'Предупредить, когда', alert_opt:'впереди {n} чел.', alert_toast:'Впереди только {n} — пора выдвигаться в центр!',
+  notif_label:'Уведомления в браузере', notif_denied:'Уведомления заблокированы в браузере.',
+  btn_cancel:'Отменить талон', confirm_cancel:'Отменить талон?', cancelled_ok:'Талон отменён', btn_new:'Взять новый талон',
+  btn_copy:'Скопировать ссылку для отслеживания', copied:'Ссылка скопирована — откройте на любом устройстве',
+  err_phone:'Введите номер полностью: +7 (7XX) XXX-XX-XX', err_offline:'Нет связи с сервером. Проверьте соединение.',
+  board_title:'Табло', board_desc:'Кто обслуживается прямо сейчас', window:'Окно', free:'Свободно',
+  q_head:'Ожидают по категориям', q_total:'Всего', q_unit:'чел.', announce:'Озвучивать вызовы (голос + звук)',
+  lock_title:'Доступ для сотрудников', lock_desc_op:'Введите PIN оператора.', lock_desc_admin:'Введите PIN администратора.',
+  pin_ph:'PIN', btn_unlock:'Войти', bad_pin:'Неверный PIN', btn_lock:'Заблокировать',
+  o_title:'Рабочее место оператора', o_desc:'Вызов талонов и фиксация результата', window_label:'Окно обслуживания',
+  btn_call:'Вызвать следующего', btn_serve:'Обслужен', btn_noshow:'Не явился', serving:'Сейчас обслуживается',
+  no_waiting:'Нет ожидающих талонов', finish_first:'Сначала завершите талон {t}', call_ok:'Вызван {t} → окно {w}', serve_ok:'{t}: обслужен', noshow_ok:'{t}: не явился',
+  a_title:'Панель', a_desc:'Статистика очереди и работа с данными',
+  k_waiting:'Ждут', k_called:'Обслуживаются', k_served:'Обслужены', k_avg:'Ср. ожидание, мин',
+  chart_title:'Талоны по часам суток', chart_src:'Источник: таблица tickets (SQLite), поле created_at',
+  btn_export:'Экспорт CSV', btn_clear:'Очистить все талоны', confirm_clear:'Удалить ВСЕ талоны из базы?', cleared:'База очищена',
+  footer:'Бесплатно для студентов, школьников и пенсионеров. Телефон используется только для защиты от дублей талонов.'
+ },
+ kk: {
+  app_sub:'Жеңілдетілген жол жүру билетіне электрондық кезек', tab_ticket:'Талон', tab_board:'Табло', tab_operator:'Оператор', tab_admin:'Әкімші',
+  c_title:'Талон алыңыз', c_desc:'Залда тұрмай: санатты таңдап, онлайн талон алыңыз.',
+  cat_label:'Санат', cat_ST:'Студенттер', cat_SC:'Оқушылар', cat_SR:'Зейнеткерлер',
+  doc_ST:'Қажет: студенттік билет + жеке куәлік', doc_SC:'Қажет: оқушы куәлігі + жеке куәлік', doc_SR:'Қажет: зейнеткер куәлігі + жеке куәлік',
+  doc_note:'Құжаттар қызмет көрсету терезесінде тексеріледі.',
+  phone_label:'Телефон нөмірі', phone_hint:'Пішімі: +7 (7XX) XXX-XX-XX', btn_issue:'Талон алу',
+  track_title:'Талоныңыз бар ма? Бақылаңыз', track_ph:'мыс. ST-36', btn_track:'Табу', track_nf:'Талон табылмады',
+  your_ticket:'Сіздің талоныңыз', ahead:'Алдыңызда', wait_min:'Күту, мин', now_serving:'Қазір қызмет көрсетілуде',
+  live:'Әр 2 секунд сайын жаңарады',
+  st_waiting:'Кезекте', st_called:'Сізді шақырып жатыр!', st_served:'Қызмет көрсетілді', st_cancelled:'Бас тартылды',
+  called_banner:'{w} терезеге келіңіз', called_toast:'Сіздің кезегіңіз! {w} терезе',
+  alert_label:'Ескерту, қашан', alert_opt:'алдыңызда {n} адам', alert_toast:'Алдыңызда тек {n} адам — орталыққа шығатын уақыт!',
+  notif_label:'Браузер хабарламалары', notif_denied:'Браузерде хабарламалар бұғатталған.',
+  btn_cancel:'Талонды болдырмау', confirm_cancel:'Талонды болдырмайсыз ба?', cancelled_ok:'Талон болдырылмады', btn_new:'Жаңа талон алу',
+  btn_copy:'Бақылау сілтемесін көшіру', copied:'Сілтеме көшірілді — кез келген құрылғыда ашыңыз',
+  err_phone:'Нөмірді толық енгізіңіз: +7 (7XX) XXX-XX-XX', err_offline:'Серверге қосылу мүмкін емес. Байланысты тексеріңіз.',
+  board_title:'Табло', board_desc:'Қазір кімге қызмет көрсетіліп жатыр', window:'Терезе', free:'Бос',
+  q_head:'Санаттар бойынша күтуде', q_total:'Барлығы', q_unit:'адам', announce:'Шақыруларды дыбыстау (дауыс + сигнал)',
+  lock_title:'Қызметкерлерге арналған кіру', lock_desc_op:'Оператор PIN кодын енгізіңіз.', lock_desc_admin:'Әкімші PIN кодын енгізіңіз.',
+  pin_ph:'PIN', btn_unlock:'Кіру', bad_pin:'PIN қате', btn_lock:'Бұғаттау',
+  o_title:'Оператордың жұмыс орны', o_desc:'Талондарды шақыру және нәтижені белгілеу', window_label:'Қызмет терезесі',
+  btn_call:'Келесіні шақыру', btn_serve:'Қызмет көрсетілді', btn_noshow:'Келмеді', serving:'Қазір қызмет көрсетілуде',
+  no_waiting:'Күтіп тұрған талон жоқ', finish_first:'Алдымен {t} талонын аяқтаңыз', call_ok:'{t} шақырылды → {w} терезе', serve_ok:'{t}: қызмет көрсетілді', noshow_ok:'{t}: келмеді',
+  a_title:'Панель', a_desc:'Кезек статистикасы және деректермен жұмыс',
+  k_waiting:'Күтуде', k_called:'Қызмет алуда', k_served:'Аяқталды', k_avg:'Орташа күту, мин',
+  chart_title:'Тәулік сағаттары бойынша талондар', chart_src:'Дереккөз: tickets кестесі (SQLite), created_at өрісі',
+  btn_export:'CSV экспорты', btn_clear:'Барлық талондарды тазалау', confirm_clear:'Базадағы БАРЛЫҚ талондарды жою керек пе?', cleared:'База тазаланды',
+  footer:'Студенттер, оқушылар және зейнеткерлер үшін тегін. Телефон тек талондардың қайталануын болдырмау үшін қолданылады.'
+ }
+};
+let lang = localStorage.getItem('aq_lang') || 'en';
+if (!I18N[lang]) lang = 'en';
+const t = (k, v = {}) => (I18N[lang][k] ?? I18N.en[k] ?? k).replace(/\{(\w+)\}/g, (_, x) => v[x] ?? '');
+
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => el.textContent = t(el.dataset.i18n));
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => el.placeholder = t(el.dataset.i18nPh));
+  document.querySelectorAll('.lang button').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  const cur = $('alertN').value || localStorage.getItem('aq_alertN') || '5';
+  $('alertN').innerHTML = [3, 5, 10].map(n => `<option value="${n}">${t('alert_opt', { n })}</option>`).join('');
+  $('alertN').value = cur;
+  $('phoneHint').textContent = t('phone_hint');
+  renderTicket(); renderBoard(); renderOperator(); renderStats();
+}
+document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => {
+  lang = b.dataset.lang; localStorage.setItem('aq_lang', lang); applyLang();
+}));
+
+/* text size (accessibility) */
+const FS = [100, 112, 125, 140]; let fsIdx = parseInt(localStorage.getItem('aq_fs') || '0', 10);
+function applyFs() { document.documentElement.style.fontSize = FS[fsIdx] + '%'; localStorage.setItem('aq_fs', fsIdx); }
+$('fsUp').onclick = () => { fsIdx = Math.min(FS.length - 1, fsIdx + 1); applyFs(); };
+$('fsDown').onclick = () => { fsIdx = Math.max(0, fsIdx - 1); applyFs(); };
+
+/* ============ helpers ============ */
+function toast(msg, type = 'ok', ms = 3500) {
+  const el = document.createElement('div'); el.className = 'toast ' + type; el.textContent = msg;
+  $('toasts').appendChild(el); setTimeout(() => el.remove(), ms);
+}
+let auth = JSON.parse(sessionStorage.getItem('aq_auth') || 'null');
+const canOperator = () => auth && (auth.role === 'operator' || auth.role === 'admin');
+const canAdmin = () => auth && auth.role === 'admin';
+
+async function api(path, method = 'GET', body, raw = false) {
+  const headers = { 'ngrok-skip-browser-warning': '1' };
+  if (body) headers['Content-Type'] = 'application/json';
+  if (auth) headers['X-Staff-Pin'] = auth.pin;
+  const res = await fetch(API_BASE + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if (res.status === 401 && auth && path !== '/api/auth') { lockStaff(); toast(t('bad_pin'), 'err'); }
+  if (raw) return res;
+  let data = {}; try { data = await res.json(); } catch (e) {}
+  return { ok: res.ok, status: res.status, data };
+}
+
+/* sound */
+let audioCtx = null;
+function unlockAudio() {
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+document.addEventListener('pointerdown', unlockAudio);
+function chime() {
+  unlockAudio(); if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  [[880, 0], [1318.5, 0.22]].forEach(([f, d]) => {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, now + d);
+    g.gain.exponentialRampToValueAtTime(0.35, now + d + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + d + 0.6);
+    o.connect(g).connect(audioCtx.destination); o.start(now + d); o.stop(now + d + 0.65);
+  });
+}
+function notify(title, body) {
+  if ('Notification' in window && Notification.permission === 'granted' && localStorage.getItem('aq_notif') === '1') {
+    try { new Notification(title, { body }); } catch (e) {}
+  }
+}
+
+/* ============ tabs ============ */
+let currentTab = 'ticket';
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.card').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
+  updateStatus();
+}
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+/* ============ phone mask ============ */
+function maskPhone(v) {
+  let d = v.replace(/\D/g, '');
+  if (d.startsWith('8')) d = '7' + d.slice(1);
+  if (!d.startsWith('7')) d = '7' + d;
+  d = d.slice(0, 11);
+  let r = '+7';
+  if (d.length > 1) r += ' (' + d.slice(1, 4);
+  if (d.length >= 4) r += ')';
+  if (d.length > 4) r += ' ' + d.slice(4, 7);
+  if (d.length > 7) r += '-' + d.slice(7, 9);
+  if (d.length > 9) r += '-' + d.slice(9, 11);
+  return r;
+}
+const phoneEl = $('phone');
+phoneEl.addEventListener('focus', () => { if (!phoneEl.value) phoneEl.value = '+7 ('; });
+phoneEl.addEventListener('input', () => {
+  const raw = phoneEl.value;
+  phoneEl.value = raw.replace(/\D/g, '').length <= 1 && raw.length < 4 ? '+7 (' : maskPhone(raw);
+  phoneEl.classList.remove('invalid'); $('phoneHint').className = 'hint'; $('phoneHint').textContent = t('phone_hint');
+});
+const phoneDigits = () => phoneEl.value.replace(/\D/g, '');
+const phoneValid = () => /^77\d{9}$/.test(phoneDigits());
+
+/* category cards */
+document.querySelectorAll('.cat input').forEach(r => r.addEventListener('change', () => {
+  document.querySelectorAll('.cat').forEach(c => c.classList.toggle('sel', c.querySelector('input').checked));
+}));
+const category = () => document.querySelector('.cat input:checked').value;
+
+/* ============ citizen ticket ============ */
+let myTicket = JSON.parse(localStorage.getItem('aq_ticket') || 'null');
+let wasCalled = !!(myTicket && myTicket.status === 'called');
+const saveTicket = () => myTicket ? localStorage.setItem('aq_ticket', JSON.stringify(myTicket)) : localStorage.removeItem('aq_ticket');
+const validNum = s => /^[A-Z]{1,3}-\d{1,4}$/.test(s);
+
+function renderTicket() {
+  const issue = $('issueView'), view = $('ticketView');
+  if (!myTicket) { issue.hidden = false; view.hidden = true; return; }
+  issue.hidden = true; view.hidden = false;
+  $('tNum').textContent = myTicket.num;
+  $('tPill').className = 'pill ' + myTicket.status; $('tPill').textContent = t('st_' + myTicket.status);
+  $('tAhead').textContent = myTicket.ahead ?? 0;
+  $('tWait').textContent = '~' + (myTicket.wait ?? 0);
+  $('tNow').textContent = myTicket.nowServing || '—';
+  const waiting = myTicket.status === 'waiting', called = myTicket.status === 'called';
+  const closed = myTicket.status === 'served' || myTicket.status === 'cancelled';
+  $('tStats').hidden = !(waiting || called);
+  $('tOpts').hidden = !waiting;
+  $('cancelBtn').hidden = !(waiting && myTicket.token);
+  $('copyBtn').hidden = closed;
+  $('newBtn').hidden = !closed;
+  $('calledBanner').hidden = !called;
+  if (called) $('calledBanner').textContent = t('called_banner', { w: myTicket.window });
+  const initial = Math.max(myTicket.initial || 1, 1);
+  const pct = (closed || called) ? 100 : Math.round((1 - (myTicket.ahead ?? 0) / initial) * 100);
+  $('tBar').style.width = Math.max(4, Math.min(100, pct)) + '%';
+}
+
+$('issueForm').addEventListener('submit', async e => {
+  e.preventDefault(); unlockAudio();
+  if (!phoneValid()) {
+    phoneEl.classList.add('invalid'); $('phoneHint').className = 'hint err'; $('phoneHint').textContent = t('err_phone'); phoneEl.focus(); return;
+  }
+  const btn = $('issueBtn'); btn.disabled = true;
+  try {
+    const { ok, data } = await api('/api/tickets', 'POST', { phone: '+' + phoneDigits(), category: category() });
+    if (ok && data.success) {
+      myTicket = { num: data.ticket_number, token: data.token, initial: data.people_ahead, status: 'waiting',
+                   ahead: data.people_ahead, wait: data.est_wait_minutes, window: null, alerted: false };
+      wasCalled = false; saveTicket(); renderTicket();
+    } else if (data.ticket_number) {
+      myTicket = { num: data.ticket_number, token: null, initial: 1, status: 'waiting', ahead: 0, wait: 0, window: null };
+      saveTicket(); renderTicket(); toast(data.error, 'warn', 5000); updateStatus();
+    } else toast(data.error || 'Error', 'err', 5000);
+  } catch (err) { $('offline').hidden = false; }
+  btn.disabled = false;
+});
+
+async function trackTicket(num) {
+  num = (num || '').trim().toUpperCase();
+  if (!validNum(num)) { toast(t('track_nf'), 'warn'); return; }
+  myTicket = { num, token: null, initial: 1, status: 'waiting', ahead: 0, wait: 0, window: null };
+  wasCalled = false; saveTicket(); renderTicket(); updateStatus();
+}
+$('trackBtn').onclick = () => trackTicket($('trackInp').value);
+$('trackInp').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); trackTicket($('trackInp').value); } });
+
+$('cancelBtn').onclick = async () => {
+  if (!myTicket || !confirm(t('confirm_cancel'))) return;
+  try {
+    const { ok, data } = await api('/api/tickets/cancel', 'POST', { ticket_number: myTicket.num, token: myTicket.token });
+    if (ok && data.success) { myTicket.status = 'cancelled'; saveTicket(); renderTicket(); toast(t('cancelled_ok')); }
+    else toast(data.error || 'Error', 'err');
+  } catch (e) { $('offline').hidden = false; }
+};
+$('newBtn').onclick = () => { myTicket = null; wasCalled = false; saveTicket(); renderTicket(); };
+$('copyBtn').onclick = async () => {
+  const link = location.origin + location.pathname + '?t=' + myTicket.num;
+  try { await navigator.clipboard.writeText(link); toast(t('copied')); } catch (e) { prompt('Link:', link); }
+};
+$('alertN').onchange = () => { localStorage.setItem('aq_alertN', $('alertN').value); if (myTicket) { myTicket.alerted = false; saveTicket(); } };
+$('notifToggle').checked = localStorage.getItem('aq_notif') === '1' && 'Notification' in window && Notification.permission === 'granted';
+$('notifToggle').onchange = async e => {
+  if (e.target.checked) {
+    const p = ('Notification' in window) ? await Notification.requestPermission() : 'denied';
+    if (p !== 'granted') { e.target.checked = false; toast(t('notif_denied'), 'warn'); return; }
+    localStorage.setItem('aq_notif', '1');
+  } else localStorage.removeItem('aq_notif');
+};
+
+/* ============ live board ============ */
+let liveStatus = null, seen = null;
+let announceOn = localStorage.getItem('aq_announce') === '1'; $('announceToggle').checked = announceOn;
+$('announceToggle').onchange = e => { announceOn = e.target.checked; localStorage.setItem('aq_announce', announceOn ? '1' : '0'); unlockAudio(); if (announceOn) chime(); };
+const qNames = { ST: 'cat_ST', SC: 'cat_SC', SR: 'cat_SR' };
+const spell = n => n.replace(/-/g, ' ').replace(/([A-Za-z])(?=[A-Za-z])/g, '$1 ');
+function announce(s) {
+  chime();
+  if (!('speechSynthesis' in window)) return;
+  const txt = { en: `Ticket ${spell(s.ticket_number)}, window ${s.window_id}`,
+                ru: `Талон ${spell(s.ticket_number)}, окно ${s.window_id}`,
+                kk: `Талон ${spell(s.ticket_number)}, ${s.window_id} терезе` }[lang];
+  const u = new SpeechSynthesisUtterance(txt); u.lang = { en: 'en-US', ru: 'ru-RU', kk: 'kk-KZ' }[lang]; u.rate = 0.9;
+  setTimeout(() => speechSynthesis.speak(u), 900);
+}
+function queueRows(headId) {
+  if (!liveStatus) return '';
+  let h = `<div class="qrow qhead"><span>${t('q_head')}</span><span>${t('q_total')}: ${liveStatus.total_waiting}</span></div>`;
+  liveStatus.queues.forEach(q => { h += `<div class="qrow"><span>${qNames[q.code] ? t(qNames[q.code]) : q.name}</span><b>${q.waiting_count} ${t('q_unit')}</b></div>`; });
+  return h;
+}
+function renderBoard() {
+  if (!liveStatus) return;
+  $('wGrid').innerHTML = [1, 2, 3].map(w => {
+    const s = liveStatus.serving.find(x => x.window_id === w);
+    return `<div class="wcard ${s ? 'busy' : ''}"><small>${t('window')} ${w}</small><div class="n">${s ? s.ticket_number : t('free')}</div></div>`;
+  }).join('');
+  $('boardQueues').innerHTML = queueRows();
+  $('opQueues').innerHTML = queueRows();
+}
+function handleAnnounce() {
+  const keys = new Set(liveStatus.serving.map(s => s.ticket_number + '|' + s.window_id));
+  if (seen && announceOn) liveStatus.serving.forEach(s => { if (!seen.has(s.ticket_number + '|' + s.window_id)) announce(s); });
+  seen = keys;
+}
+
+/* ============ staff ============ */
+function renderGates() {
+  $('gate-operator').hidden = !!canOperator(); $('staff-operator').hidden = !canOperator();
+  $('gate-admin').hidden = !!canAdmin(); $('staff-admin').hidden = !canAdmin();
+}
+function lockStaff() { auth = null; sessionStorage.removeItem('aq_auth'); renderGates(); }
+document.querySelectorAll('.lockBtn').forEach(b => b.onclick = lockStaff);
+document.querySelectorAll('.gateForm').forEach(f => f.addEventListener('submit', async e => {
+  e.preventDefault();
+  const pin = f.querySelector('input').value, role = f.dataset.role;
+  try {
+    const { ok } = await api('/api/auth', 'POST', { role, pin });
+    if (ok) { auth = { role, pin }; sessionStorage.setItem('aq_auth', JSON.stringify(auth)); f.reset(); renderGates(); updateStatus(); }
+    else toast(t('bad_pin'), 'err');
+  } catch (err) { $('offline').hidden = false; }
+}));
+
+function renderOperator() {
+  if (!liveStatus) return;
+  const w = parseInt($('windowId').value, 10);
+  const mine = liveStatus.serving.find(s => s.window_id === w);
+  $('curServing').textContent = mine ? mine.ticket_number : '—';
+  $('serveBtn').disabled = !mine; $('noshowBtn').disabled = !mine; $('callBtn').disabled = !!mine;
+}
+$('windowId').onchange = renderOperator;
+$('callBtn').onclick = async () => {
+  unlockAudio(); const w = parseInt($('windowId').value, 10);
+  try {
+    const { data } = await api('/api/operator/call', 'POST', { window_id: w });
+    if (data.success) { chime(); toast(t('call_ok', { t: data.ticket_number, w }), 'call'); }
+    else if (data.code === 'empty') toast(t('no_waiting'), 'warn');
+    else if (data.code === 'busy') toast(t('finish_first', { t: data.ticket_number }), 'warn');
+    updateStatus();
+  } catch (e) { $('offline').hidden = false; }
+};
+async function closeTicket(path, key) {
+  const w = parseInt($('windowId').value, 10);
+  try {
+    const { data } = await api(path, 'POST', { window_id: w });
+    if (data.success) toast(t(key, { t: data.ticket_number }));
+    updateStatus();
+  } catch (e) { $('offline').hidden = false; }
+}
+$('serveBtn').onclick = () => closeTicket('/api/operator/serve', 'serve_ok');
+$('noshowBtn').onclick = () => closeTicket('/api/operator/noshow', 'noshow_ok');
+
+/* ============ admin ============ */
+let stats = null;
+function renderStats() {
+  if (!stats) return;
+  const s = stats.by_status || {};
+  $('kWaiting').textContent = s.waiting || 0; $('kCalled').textContent = s.called || 0;
+  $('kServed').textContent = s.served || 0; $('kAvg').textContent = stats.avg_wait_min ?? '—';
+  const hours = stats.by_hour || [], max = Math.max(1, ...hours.map(h => h.count));
+  $('hourChart').innerHTML = hours.map(h => `<div class="col" title="${h.hour}:00 — ${h.count}">${h.count}<i style="height:${Math.round(h.count / max * 85)}%"></i></div>`).join('');
+  $('hourAxis').innerHTML = hours.map(h => `<span>${h.hour}</span>`).join('');
+}
+$('exportBtn').onclick = async () => {
+  const res = await api('/api/export.csv', 'GET', null, true);
+  if (!res.ok) return toast('Error', 'err');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(await res.blob());
+  a.download = 'astanaqueue_tickets.csv'; a.click(); URL.revokeObjectURL(a.href);
+};
+$('clearBtn').onclick = async () => {
+  if (!confirm(t('confirm_clear'))) return;
+  const { data } = await api('/api/admin/clear', 'POST');
+  if (data.success) { toast(t('cleared')); updateStatus(); }
+};
+
+/* ============ live polling every 2 s (R2, R11) ============ */
+let busy = false;
+async function updateStatus() {
+  if (busy) return; busy = true;
+  try {
+    if (myTicket && (myTicket.status === 'waiting' || myTicket.status === 'called')) {
+      const { ok, status, data } = await api('/api/tickets/' + encodeURIComponent(myTicket.num));
+      if (ok) {
+        myTicket.status = data.status; myTicket.ahead = data.people_ahead; myTicket.wait = data.est_wait_minutes;
+        myTicket.window = data.window_id; myTicket.nowServing = data.now_serving;
+        if (myTicket.initial < data.people_ahead) myTicket.initial = data.people_ahead;
+        const n = parseInt($('alertN').value, 10);
+        if (data.status === 'waiting' && !myTicket.alerted && data.people_ahead <= n) {
+          myTicket.alerted = true; chime(); toast(t('alert_toast', { n: data.people_ahead }), 'warn', 7000);
+          notify('AstanaQueue', t('alert_toast', { n: data.people_ahead }));
+        }
+        if (data.status === 'called' && !wasCalled) {
+          wasCalled = true; chime(); toast(t('called_toast', { w: data.window_id }), 'call', 9000);
+          notify('AstanaQueue', t('called_toast', { w: data.window_id }));
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        }
+        saveTicket(); renderTicket();
+      } else if (status === 404) {
+        toast(t('track_nf'), 'warn'); myTicket = null; saveTicket(); renderTicket();
+      }
+    }
+    if (currentTab === 'board' || (currentTab === 'operator' && canOperator()) || announceOn) {
+      const { ok, data } = await api('/api/status');
+      if (ok) { liveStatus = data; handleAnnounce(); renderBoard(); renderOperator(); }
+    }
+    if (currentTab === 'admin' && canAdmin()) {
+      const { ok, data } = await api('/api/stats'); if (ok) { stats = data; renderStats(); }
+    }
+    $('liveDot').classList.remove('off'); $('offline').hidden = true;
+  } catch (e) { $('liveDot').classList.add('off'); $('offline').hidden = false; }
+  busy = false;
+}
+setInterval(updateStatus, POLL_MS);
+
+/* ============ init ============ */
+applyFs(); applyLang(); renderGates();
+const qp = new URLSearchParams(location.search).get('t');
+if (qp && validNum(qp.toUpperCase()) && !(myTicket && myTicket.num === qp.toUpperCase())) trackTicket(qp);
+updateStatus();
+</script>
+</body>
+</html>
